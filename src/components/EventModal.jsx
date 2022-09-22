@@ -1,7 +1,16 @@
 import { useContext, useState } from "react";
 import GlobalContext from "../context/GlobalContext";
-
-const labelClasses = ["blue", "indigo", "gray", "green", "red", "purple"];
+import LibraryContext from "../context/LibraryContext";
+import { useNavigate } from "react-router-dom";
+import {
+  getColor,
+  getColorId,
+  labelColorClasses,
+  postRequest,
+  SCOPE,
+  setGapiClient,
+  YYYYMMDDFormat,
+} from "../util";
 
 const EventModal = () => {
   const {
@@ -11,32 +20,115 @@ const EventModal = () => {
     selectedEvent,
   } = useContext(GlobalContext);
 
-  const [title, setTitle] = useState(selectedEvent ? selectedEvent.title : "");
+  const { gapi, google } = useContext(LibraryContext);
+
+  setGapiClient(gapi);
+
+  google.accounts.oauth2.initTokenClient({
+    client_id: process.env.REACT_APP_CLIENT_ID,
+    scope: SCOPE,
+    callback: "",
+  });
+
+  const [summary, setSummary] = useState(
+    selectedEvent ? selectedEvent.summary : ""
+  );
+
   const [description, setDescription] = useState(
     selectedEvent ? selectedEvent.description : ""
   );
+
   const [selectedLabel, setSelectedLabel] = useState(
     selectedEvent
-      ? labelClasses.find((label) => selectedEvent.label === label)
-      : labelClasses[0]
+      ? labelColorClasses.find(
+          (labelColor) => getColor(selectedEvent.colorId) === labelColor
+        )
+      : labelColorClasses[0]
   );
+
+  const navigate = useNavigate();
+  const handleCode = (code) => {
+    if (code === 401) {
+      navigate("/");
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const calendarEvent = {
-      title,
+    const event = {
+      summary: summary ? summary : "제목없음",
       description,
-      label: selectedLabel,
-      day: daySelected.valueOf(),
-      id: selectedEvent ? selectedEvent.id : Date.now(),
+      colorId: getColorId(selectedLabel),
+      ...(!selectedEvent
+        ? { date: daySelected.format(YYYYMMDDFormat) }
+        : selectedEvent.date
+        ? { date: selectedEvent.date }
+        : { dateTime: selectedEvent.dateTime }),
+      ...(selectedEvent ? { id: selectedEvent.id } : null),
     };
 
     if (selectedEvent) {
-      dispatchCalenderEvents({ type: "update", payload: calendarEvent });
+      gapi.client.calendar.events
+        .patch({
+          calendarId: "primary",
+          eventId: event.id,
+          resource: event,
+        })
+        .execute((result) => {
+          postRequest(result, "insert", () =>
+            dispatchCalenderEvents({ type: "update", payload: event })
+          );
+          handleCode(result.code);
+        });
     } else {
-      dispatchCalenderEvents({ type: "push", payload: calendarEvent });
+      const insertEvent = {
+        ...event,
+        end: {
+          date: daySelected.format(YYYYMMDDFormat),
+        },
+        start: {
+          date: daySelected.format(YYYYMMDDFormat),
+        },
+      };
+
+      gapi.client.calendar.events
+        .insert({
+          calendarId: "primary",
+          resource: insertEvent,
+        })
+        .execute((result) => {
+          postRequest(result, "insert", () =>
+            dispatchCalenderEvents({
+              type: "push",
+              payload: {
+                ...event,
+                id: result.id,
+              },
+            })
+          );
+          handleCode(result.code);
+        });
     }
+
+    setShowEventModal(false);
+  };
+
+  const handleDelete = () => {
+    gapi.client.calendar.events
+      .delete({
+        calendarId: "primary",
+        eventId: selectedEvent.id,
+      })
+      .execute((result) => {
+        postRequest(result, "delete", () => {
+          dispatchCalenderEvents({
+            type: "delete",
+            payload: selectedEvent,
+          });
+        });
+        handleCode(result.code);
+      });
 
     setShowEventModal(false);
   };
@@ -51,13 +143,7 @@ const EventModal = () => {
           <div>
             {selectedEvent && (
               <span
-                onClick={() => {
-                  dispatchCalenderEvents({
-                    type: "delete",
-                    payload: selectedEvent,
-                  });
-                  setShowEventModal(false);
-                }}
+                onClick={handleDelete}
                 className="material-symbols-rounded text-gray-400 cursor-pointer"
               >
                 delete
@@ -76,11 +162,11 @@ const EventModal = () => {
             <input
               className="pt-3 border-0 text-gray-600 text-xl font-semibold pb-2 w-full border-b-2 border-gray-200 focus:ring-0 focus:border-blue-500"
               type="text"
-              name="title"
+              name="summary"
               placeholder="Add title"
-              value={title}
+              value={summary}
               required
-              onChange={({ target: { value } }) => setTitle(value)}
+              onChange={({ target: { value } }) => setSummary(value)}
             />
             <span className="material-symbols-rounded text-gray-400">
               schedule
@@ -102,11 +188,11 @@ const EventModal = () => {
               bookmarks
             </span>
             <div className="flex gap-x-2">
-              {labelClasses.map((labelClass, index) => (
+              {labelColorClasses.map((labelClass, index) => (
                 <span
                   key={index}
                   onClick={() => setSelectedLabel(labelClass)}
-                  className={`w-6 h-6 bg-${labelClass}-500 rounded-full flex items-center justify-center cursor-pointer`}
+                  className={`w-6 h-6 bg-${labelClass} rounded-full flex items-center justify-center cursor-pointer`}
                 >
                   {selectedLabel === labelClass && (
                     <span className="material-symbols-rounded text-white text-sm">

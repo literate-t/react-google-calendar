@@ -14,9 +14,6 @@ const CalendarHeader = () => {
     setMonthIndex((index) => index + 1);
   };
 
-  // const handleToday = () => {
-  //   setMonthIndex(dayjs().month());
-  // };
   // 스몰 캘린더에도 영향을 주기 위해
   // 강제로 리렌더를 발생시키는 트릭
   const handleToday = () => {

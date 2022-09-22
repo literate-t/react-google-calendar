@@ -4,6 +4,8 @@ import GlobalContext from "./GlobalContext";
 
 const savedEventsReducer = (state, { type, payload }) => {
   switch (type) {
+    case "init":
+      return [...payload];
     case "push":
       return [...state, payload];
     case "update":
@@ -39,8 +41,8 @@ const ContextWrapper = ({ children }) => {
     return savedEvents.filter((event) =>
       labels
         .filter((item) => item.checked)
-        .map((item) => item.label)
-        .includes(event.label)
+        .map((item) => item.colorId)
+        .includes(event.colorId)
     );
   }, [savedEvents, labels]);
 
@@ -56,11 +58,11 @@ const ContextWrapper = ({ children }) => {
 
   useEffect(() => {
     setLabels((prev) => {
-      return [...new Set(savedEvents.map((event) => event.label))].map(
-        (label) => {
-          const currentLabel = prev.find((item) => item.label === label);
+      return [...new Set(savedEvents.map((event) => event.colorId))].map(
+        (colorId) => {
+          const currentLabel = prev.find((item) => item.colorId === colorId);
           return {
-            label,
+            colorId,
             checked: currentLabel ? currentLabel.checked : true,
           };
         }
@@ -70,9 +72,19 @@ const ContextWrapper = ({ children }) => {
 
   const updateLabel = (labelObj) => {
     setLabels((prevItems) =>
-      prevItems.map((item) => (item.label === labelObj.label ? labelObj : item))
+      prevItems.map((item) =>
+        item.colorId === labelObj.colorId ? labelObj : item
+      )
     );
   };
+
+  // const updateLabel = (labelObj) => {
+  //   setLabels((prevItems) =>
+  //     prevItems.map((item) =>
+  //       item.colorId === labelObj.colorId ? labelObj : item
+  //     )
+  //   );
+  // };
 
   return (
     <GlobalContext.Provider

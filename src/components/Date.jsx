@@ -1,6 +1,7 @@
 import dayjs from "dayjs";
 import { useContext, useEffect, useState } from "react";
 import GlobalContext from "../context/GlobalContext";
+import { getColor } from "../util";
 
 const Date = ({ date, rowIdx }) => {
   const [dateEvents, setDateEvents] = useState([]);
@@ -13,7 +14,9 @@ const Date = ({ date, rowIdx }) => {
 
   useEffect(() => {
     const events = filteredEvents.filter(
-      (event) => dayjs(event.day).format("DD-MM-YY") === date.format("DD-MM-YY")
+      (event) =>
+        dayjs(event.date || event.dateTime).format("DD-MM-YY") ===
+        date.format("DD-MM-YY")
     );
 
     setDateEvents(events);
@@ -40,7 +43,6 @@ const Date = ({ date, rowIdx }) => {
         onClick={() => {
           setDaySelected(date);
           setShowEventModal(true);
-          console.log("b");
         }}
       >
         {dateEvents.map((event, index) => (
@@ -48,11 +50,12 @@ const Date = ({ date, rowIdx }) => {
             key={index}
             onClick={() => {
               setSelectedEvent(event);
-              console.log("a");
             }}
-            className={`bg-${event.label}-400 p-1 mr-3 text-gray-300 text-sm rounded mb-1 truncate`}
+            className={`bg-${getColor(
+              event.colorId
+            )} p-1 mr-3 text-white text-sm rounded mb-1 truncate`}
           >
-            {event.title}
+            {event.summary}
           </div>
         ))}
       </div>
